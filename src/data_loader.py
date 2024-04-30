@@ -15,15 +15,18 @@ class DataLoader:
             csv_file (str): Имя файла CSV, содержащего метки и пути к изображениям.
         """
         self.base_path = base_path
-        self.labels_df = pd.read_csv(os.path.join(base_path, "..", csv_file))
+        self.labels_df = pd.read_csv(os.path.join(base_path, csv_file))
         self.update_image_paths()
 
     def update_image_paths(self):
         """
-        Обновление путей к изображениям в датафрейме, чтобы они были полными.
+        Обновление путей к изображениям в датафрейме.
+        Преобразует относительные пути, начинающиеся с './train/' на raw/train/.
         """
         self.labels_df["image_path"] = self.labels_df["image_path"].apply(
-            lambda x: os.path.join(self.base_path, x.split("/")[-2], x.split("/")[-1])
+            lambda x: os.path.abspath(
+                os.path.join(self.base_path, "raw", "train", x.replace("./train/", ""))
+            )
         )
 
     def load_image(self, path, size=(224, 224)):
