@@ -32,7 +32,7 @@ class DataLoader:
         """
         self.labels_df["image_path"] = self.labels_df["image_path"].apply(
             lambda x: os.path.abspath(
-                os.path.join(self.base_path, "raw", "train", x.replace("./train/", ""))
+                os.path.join(self.base_path, "train", x.replace("./train/", ""))
             )
         )
 
