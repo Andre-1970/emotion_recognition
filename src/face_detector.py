@@ -1,26 +1,24 @@
 import cv2
 import os
-import numpy as np
 
 
 class FaceDetector:
-    def __init__(self, haarcascade_path):
+    def __init__(self):
         """
         Инициализация детектора лиц с использованием предобученных моделей Haar Cascade от OpenCV.
-        Parameters:
-            haarcascade_path (str): Путь к файлу XML с Haar Cascade моделью.
         """
-        self.face_cascade = cv2.CascadeClassifier(haarcascade_path)
+        # Указываем путь к XML-файлу с предобученной моделью Haar Cascade
+        cascade_path = "../data/resources/haarcascade_frontalface_default.xml"
+        self.face_cascade = cv2.CascadeClassifier(cascade_path)
 
-    def detect_faces(self, image_path):
+    def detect_faces(self, image):
         """
         Обнаруживает лица на изображении и возвращает координаты областей, содержащих лица.
         Parameters:
-            image_path (str): Путь к изображению, на котором необходимо обнаружить лица.
+            image (numpy.ndarray): Исходное изображение в формате BGR.
         Returns:
-            list: Список кортежей, каждый из которых содержит координаты (x, y, w, h) обнаруженного лица.
+            list of tuple: Список кортежей, где каждый кортеж содержит координаты (x, y, w, h) каждого обнаруженного лица.
         """
-        image = cv2.imread(image_path)
         gray = cv2.cvtColor(image, cv2.COLOR_BGR2GRAY)
         faces = self.face_cascade.detectMultiScale(
             gray,
@@ -31,31 +29,49 @@ class FaceDetector:
         )
         return faces
 
-    def extract_faces(self, image_path, save_path=None):
+    def extract_faces(self, image_path, save_path):
         """
         Извлекает и сохраняет лица, обнаруженные на изображении.
         Parameters:
-            image_path (str): Путь к изображению для обработки.
-            save_path (str): Папка для сохранения извлечённых лиц.
+            image_path (str): Полный путь к исходному изображению.
+            save_path (str): Путь к директории, где будут сохранены извлеченные лица.
         Returns:
-            list: Список извлеченных лиц в виде массивов numpy.
+            list: Список изображений лиц, извлеченных из исходного изображения.
         """
-        faces = self.detect_faces(image_path)
         image = cv2.imread(image_path)
+        faces = self.detect_faces(image)
         face_images = []
         for i, (x, y, w, h) in enumerate(faces):
             face = image[y : y + h, x : x + w]
-            if save_path:
-                face_filename = f"{save_path}/face_{i}.png"
-                cv2.imwrite(face_filename, face)
+            face_filename = os.path.join(save_path, f"face_{i}.png")
+            cv2.imwrite(face_filename, face)
             face_images.append(face)
         return face_images
 
 
 if __name__ == "__main__":
-    detector = FaceDetector(
-        "haarcascade_frontalface_default.xml"
-    )  # Укажите актуальный путь к файлу .xml
-    detected_faces = detector.extract_faces(
-        "path_to_your_image.jpg", save_path="path_to_save_faces"
-    )
+    detector = FaceDetector()
+    base_path = "../data/train"
+    categories = [
+        name
+        for name in os.listdir(base_path)
+        if os.path.isdir(os.path.join(base_path, name))
+    ]
+    for category in categories:
+        image_dir = os.path.join(base_path, category)
+        save_dir = f"../data/processed/{category}"
+        os.makedirs(
+            save_dir, exist_ok=True
+        )  # Создание директории, если она не существует
+
+        images = [
+            img
+            for img in os.listdir(image_dir)
+            if img.lower().endswith(("png", "jpg", "jpeg"))
+        ]
+        for image_name in images:
+            image_path = os.path.join(image_dir, image_name)
+            detected_faces = detector.extract_faces(image_path, save_dir)
+            print(
+                f"Processed {len(detected_faces)} faces from {image_name} in category '{category}'."
+            )
