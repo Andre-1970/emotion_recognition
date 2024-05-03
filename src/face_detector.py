@@ -10,8 +10,9 @@ class FaceDetector:
         """
         self.base_path = "data/train"  # Путь к исходным данным
         self.save_dir = "data/processed"  # Путь для сохранения результатов
-        cascade_path = "data/resources/haarcascade_frontalface_default.xml"  # Путь к файлу Haar Cascade
-        self.face_cascade = cv2.CascadeClassifier(cascade_path)
+        self.face_cascade = cv2.CascadeClassifier(
+            "data/resources/haarcascade_frontalface_default.xml"
+        )  # Путь к файлу Haar Cascade
 
     def detect_faces(self, image):
         """

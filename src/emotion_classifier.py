@@ -1,7 +1,9 @@
+import os
 import numpy as np
 import tensorflow as tf
-from tensorflow.keras.models import load_model # type: ignore
-from tensorflow.keras.preprocessing.image import ImageDataGenerator # type: ignore
+from tensorflow.keras.models import load_model  # type: ignore
+from tensorflow.keras.preprocessing.image import ImageDataGenerator  # type: ignore
+from tensorflow.keras.optimizers import Adam  # type: ignore
 
 
 class EmotionClassifier:
@@ -9,9 +11,21 @@ class EmotionClassifier:
         """
         Инициализация классификатора эмоций с загрузкой предобученной модели и настройкой генератора данных.
         """
-        model_path = "models/mobilenet_v3.h5"
-        self.model = load_model(model_path)
-        self.image_size = (224, 224)  # Размер изображений
+        # Загружаем модель, компиляция отключена для дальнейшего использования оптимизатора
+        self.model = load_model("models/mobilenet_v3.keras", compile=False)
+
+        # Компиляция модели с новым оптимизатором
+        self.model.compile(
+            optimizer=Adam(learning_rate=0.0001),
+            loss="categorical_crossentropy",
+            metrics=["accuracy"],
+        )
+
+        # Размер изображений для модели
+        self.image_size = (224, 224)
+
+        # Определение классов, с которыми обучалась модель
+        self.class_names = sorted(next(os.walk("data/train"))[1])
 
         # Настройка генератора данных с аугментацией для использования при предсказании
         self.datagen = ImageDataGenerator(
@@ -25,31 +39,42 @@ class EmotionClassifier:
             fill_mode="nearest",
         )
 
-    def prepare_image(self, image_path):
+    def prepare_image(self, image_input):
         """
-        Загружает и обрабатывает изображение для предсказания.
+        Обрабатывает изображение для предсказания.
         Parameters:
-            image_path (str): Путь к изображению для классификации.
+            image_input (str или numpy.ndarray): Путь к изображению или само изображение для классификации.
         Returns:
-            Обработанное изображение.
+            numpy.ndarray: Обработанное изображение с добавленным измерением батча.
         """
-        img = tf.keras.preprocessing.image.load_img(
-            image_path, target_size=self.image_size
-        )
-        img_array = tf.keras.preprocessing.image.img_to_array(img)
-        img_array = np.expand_dims(img_array, axis=0)  # Добавление размерности батча
-        return img_array
+        if isinstance(image_input, str):
+            # Загрузка изображения по пути
+            image = tf.keras.preprocessing.image.load_img(
+                image_input, target_size=self.image_size
+            )
+            image = tf.keras.preprocessing.image.img_to_array(image)
+        elif isinstance(image_input, np.ndarray):
+            # Обработка numpy-изображения
+            image = tf.image.resize(image_input, self.image_size)
+            image = np.array(image)
+        else:
+            raise ValueError(
+                "Функция prepare_image ожидает путь к файлу или np.ndarray"
+            )
 
-    def predict_emotion(self, image_path):
+        image = np.expand_dims(image, axis=0)  # Добавление измерения батча
+        return image
+
+    def predict_emotion(self, image_input):
         """
         Выполняет предсказание эмоции на изображении.
         Parameters:
-            image_path (str): Путь к изображению.
+            image_input (str или numpy.ndarray): Путь к изображению или само изображение.
         Returns:
-            int: Индекс предсказанной эмоции.
+            str: Название предсказанной эмоции.
         """
-        image = self.prepare_image(image_path)
+        image = self.prepare_image(image_input)
         image = self.datagen.standardize(image)  # Применение аугментации
         predictions = self.model.predict(image)
         predicted_index = np.argmax(predictions, axis=1)[0]
-        return predicted_index
+        return self.class_names[predicted_index]
